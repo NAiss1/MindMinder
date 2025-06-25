@@ -3,6 +3,10 @@
 MindMinder is a Flask-based web application that allows users to record or upload audio meetings and receive intelligent transcripts and summaries. The system performs speaker diarization, transcription (via OpenAI Whisper), and topic-based summarization (via HuggingFace BART model). It also includes email delivery and personal usage statistics.
 
 ---
+### 🎥 Demo
+https://user-images.githubusercontent.com/yourusername/demo%20MindMinder.mp4
+
+---
 
 ## 🚀 Features
 
