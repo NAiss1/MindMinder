@@ -4,7 +4,7 @@ MindMinder is a Flask-based web application that allows users to record or uploa
 
 ---
 ### 🎥 Demo
-https://user-images.githubusercontent.com/NAiss1/demoMindminder.mp4
+[https://user-images.githubusercontent.com/NAiss1/demoMindminder.mp4](https://github.com/NAiss1/MindMinder/blob/main/demoMindminder.mp4)
 
 ---
 
