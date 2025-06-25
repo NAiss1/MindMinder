@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>MindMinder</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; padding: 0;
+      font-family: Arial, sans-serif;
+      background: linear-gradient(to bottom right, #1E3A8A, #16A085);
+      min-height: 100vh; color: #FFFFFF;
+    }
+    .navbar {
+      width:100%; background:#1E3A8A; padding:10px 20px;
+      display:flex; align-items:center; justify-content:space-between;
+      position:fixed; top:0; left:0; height:55px; z-index:100;
+    }
+    .navbar .nav-links {
+      display:flex; gap:20px; align-items:center;
+    }
+    .navbar a {
+      color:#FFF; text-decoration:none; padding:10px 15px; border-radius:5px;
+      transition:background 0.3s; display:flex; align-items:center; gap:5px;
+    }
+    .navbar a:hover {
+      background:rgba(255,255,255,0.2);
+    }
+    .active {
+      background:rgba(19,202,248,0.651) !important;
+    }
+    .logout-btn {
+      background:#F4A261; color:#FFF; padding:8px 15px; border-radius:5px;
+      font-weight:bold;
+    }
+    .logout-btn:hover { background:#E76F51; }
+    #userEmailLabel {
+      margin-right:10px; font-weight:bold; color:#FFF;
+    }
+    .container {
+      width:420px; margin:100px auto; background:#FFF; color:#333;
+      padding:25px 30px; border-radius:10px; box-shadow:0 8px 16px rgba(0,0,0,0.15);
+    }
+    h1 { text-align:center; margin-bottom:15px; font-size:1.4rem; }
+    .disclaimer {
+      background:#F7C59F; border-left:5px solid #34568B; padding:10px;
+      margin-bottom:15px; font-size:0.9rem; color:#333;
+    }
+    .btn {
+      display:inline-block; width:100%; padding:12px; border:none;
+      border-radius:5px; margin-top:10px; cursor:pointer; font-size:1rem;
+      transition:transform 0.2s ease, opacity 0.3s ease; text-align:center;
+      color:#FFF;
+    }
+    .start { background:#2ECC71; }
+    .stop  { background:#E74C3C; }
+    .upload{ background:#F7C59F; color:#34568B; }
+    #upload-spinner {
+      display:none; margin-top:20px; text-align:center;
+    }
+    .spinner {
+      margin:10px auto; border:6px solid #f3f3f3; border-radius:50%;
+      border-top:6px solid #34568B; width:40px; height:40px;
+      animation:spin 1s linear infinite;
+    }
+    @keyframes spin {
+      0% { transform:rotate(0deg); } 100% { transform:rotate(360deg); }
+    }
+    #progress-bar-container {
+      width:100%; background:#e9ecef; border-radius:3px; height:8px;
+      overflow:hidden; margin-top:10px;
+    }
+    #progress-bar {
+      width:0%; height:100%; background:#34568B; transition:width 0.2s ease;
+    }
+    #progress-text {
+      margin-top:8px; font-size:0.85rem; color:#666; text-align:center;
+    }
+    .instruction-list {
+      list-style-type:none; padding-left:0;
+    }
+    .instruction-list li {
+      margin-bottom:8px;
+    }
+    #audio-meter-container {
+      display:none; margin-top:15px; text-align:center;
+    }
+    #audio-level-meter {
+      background:#eee; border:1px solid #ccc;
+    }
+  </style>
+</head>
+<body>
+<div class="navbar">
+  <div class="nav-links">
+    <a href="frontend.html" id="mainPageBtn">🏠 Home</a>
+    <a href="statistics.html">📊 Statistics</a>
+    <a href="history.html">📂 History</a>
+    <a href="edit_user.html">⚙️ Change User Details</a>
+  </div>
+  <div class="nav-links">
+    <span id="userEmailLabel">Loading...</span>
+    <a href="login.html" onclick="logout()" class="logout-btn">🚪 Logout</a>
+  </div>
+</div>
+
+<div class="container">
+  <h1>MindMinder: An Intelligent Summarization Tool</h1>
+  <div class="disclaimer">
+    Please do not refresh or navigate away while your file is uploading or processing.
+    Longer audio files will require more time.
+  </div>
+
+  <div style="text-align:center;">
+    <button id="toggle-record-btn" class="btn start">🎤 Start Recording</button>
+  </div>
+
+  <div id="audio-meter-container">
+    <canvas id="audio-level-meter" width="300" height="50"></canvas>
+  </div>
+
+  <form id="upload-form" style="margin-top:20px;">
+    <input
+      type="file"
+      id="file-upload"
+      accept=".wav,.mp3,.mp4,.m4a,.ogg,.flac"
+      required
+      style="width:100%;padding:10px;margin-bottom:10px;border:1px solid #ccc;border-radius:5px;font-size:0.95rem;color:#333;"
+    />
+    <button type="submit" class="btn upload">📤 Upload & Process</button>
+  </form>
+
+  <div id="upload-spinner" style="display:none;">
+    <p>Uploading & Processing... Please wait.</p>
+    <div class="spinner"></div>
+    <div id="progress-bar-container">
+      <div id="progress-bar"></div>
+    </div>
+    <div id="progress-text">
+      Upload progress: <span id="progress-value">0%</span>
+    </div>
+  </div>
+
+  <ul class="instruction-list">
+    <li>1️⃣ Record/Upload meeting.</li>
+    <li>2️⃣ Wait for the upload to complete</li>
+    <li>3️⃣ Review Transcipt and Summary in "History"</li>
+  </ul>
+</div>
+
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const currentPage = window.location.pathname.split("/").pop();
+    if (!currentPage || currentPage==="frontend.html") {
+      document.getElementById("mainPageBtn").classList.add("active");
+    }
+    const userEmail = localStorage.getItem("userEmail");
+    if (!userEmail) {
+      window.location.href = "login.html";
+      return;
+    }
+    document.getElementById("userEmailLabel").textContent = userEmail;
+  });
+  function logout() {
+    localStorage.removeItem("userEmail");
+    window.location.href = "login.html";
+  }
+
+  let isRecording = false;
+  let mediaRecorder;
+  let recordedChunks = [];
+  let audioCtx;
+  let meterCanvas, meterCtx, analyser, meterAnimationFrameId=null;
+
+  const recordBtn = document.getElementById("toggle-record-btn");
+  recordBtn.addEventListener("click", handleRecordToggle);
+
+  async function handleRecordToggle() {
+    if (!isRecording) {
+      try {
+        const displayStream = await navigator.mediaDevices.getDisplayMedia({
+          video: true,
+          audio: true
+        });
+        const micStream = await navigator.mediaDevices.getUserMedia({ audio:true });
+
+        console.log("displayStream audio tracks:", displayStream.getAudioTracks());
+        console.log("micStream audio tracks:", micStream.getAudioTracks());
+
+        audioCtx = new AudioContext();
+
+        const sysSource = audioCtx.createMediaStreamSource(displayStream);
+        const micSource = audioCtx.createMediaStreamSource(micStream);
+
+        const destination = audioCtx.createMediaStreamDestination();
+
+        sysSource.connect(destination);
+        micSource.connect(destination);
+
+        const finalStream = destination.stream;
+        const displayVideoTracks = displayStream.getVideoTracks();
+        if (displayVideoTracks.length > 0) {
+          finalStream.addTrack(displayVideoTracks[0]);
+        }
+
+        initAudioMeter(finalStream);
+
+        startRecording(finalStream);
+        toggleRecordingState(true);
+
+      } catch (err) {
+        console.error("Error capturing system + mic audio:", err);
+        alert("Could not capture system audio. Make sure you chose a source with 'Share Audio' if using a tab or window. Mac entire screen may not have system audio.");
+      }
+    } else {
+      stopRecording();
+      stopAudioMeter();
+      toggleRecordingState(false);
+    }
+  }
+
+  function startRecording(stream) {
+    recordedChunks = [];
+    mediaRecorder = new MediaRecorder(stream);
+
+    mediaRecorder.ondataavailable = e => {
+      if (e.data.size>0) {
+        recordedChunks.push(e.data);
+      }
+    };
+    mediaRecorder.onstop = () => {
+      const audioBlob = new Blob(recordedChunks, { type:"audio/wav" });
+      const file = new File([audioBlob], "recordingNotUpload.wav", { type:"audio/wav" });
+      const fileInput = document.getElementById("file-upload");
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      fileInput.files = dt.files;
+    };
+
+    mediaRecorder.start();
+    console.log("Recording started with a single track containing both system + mic audio.");
+  }
+
+  function stopRecording() {
+    if (mediaRecorder && mediaRecorder.state!=="inactive") {
+      mediaRecorder.stop();
+    }
+  }
+
+  function toggleRecordingState(newState) {
+    isRecording = newState;
+    if (isRecording) {
+      recordBtn.classList.remove("start");
+      recordBtn.classList.add("stop");
+      recordBtn.textContent = "🛑 Stop Recording";
+    } else {
+      recordBtn.classList.remove("stop");
+      recordBtn.classList.add("start");
+      recordBtn.textContent = "🎤 Start Recording";
+    }
+  }
+
+  function initAudioMeter(stream) {
+    document.getElementById("audio-meter-container").style.display = "block";
+    const source = audioCtx.createMediaStreamSource(stream);
+
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize=256;
+    source.connect(analyser);
+
+    meterCanvas = document.getElementById("audio-level-meter");
+    meterCtx = meterCanvas.getContext("2d");
+    drawMeter();
+  }
+
+  function drawMeter() {
+    const bufLen = analyser.fftSize;
+    const dataArray = new Uint8Array(bufLen);
+    analyser.getByteTimeDomainData(dataArray);
+
+    meterCtx.clearRect(0,0,meterCanvas.width,meterCanvas.height);
+    meterCtx.lineWidth=2;
+    meterCtx.strokeStyle="#34568B";
+    meterCtx.beginPath();
+
+    let sliceWidth = meterCanvas.width/bufLen;
+    let x=0;
+    for(let i=0; i<bufLen; i++) {
+      let v = dataArray[i]/128.0;
+      let y = (v * meterCanvas.height)/2;
+      if(i===0) meterCtx.moveTo(x,y);
+      else meterCtx.lineTo(x,y);
+      x += sliceWidth;
+    }
+    meterCtx.lineTo(meterCanvas.width,meterCanvas.height/2);
+    meterCtx.stroke();
+
+    meterAnimationFrameId = requestAnimationFrame(drawMeter);
+  }
+
+  function stopAudioMeter() {
+    if (audioCtx) {
+      audioCtx.close();
+      audioCtx=null;
+    }
+    if (meterAnimationFrameId) {
+      cancelAnimationFrame(meterAnimationFrameId);
+      meterAnimationFrameId=null;
+    }
+    document.getElementById("audio-meter-container").style.display="none";
+  }
+
+
+  document.getElementById("upload-form").addEventListener("submit", e => {
+    e.preventDefault();
+    const spinner = document.getElementById("upload-spinner");
+    spinner.style.display="block";
+
+    const fileInput = document.getElementById("file-upload");
+    const userEmail = localStorage.getItem("userEmail");
+    if(!fileInput.files.length || !userEmail){
+      spinner.style.display="none";
+      return;
+    }
+
+    const file = fileInput.files[0];
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("email", userEmail);
+
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST","http://127.0.0.1:5000/upload");
+
+    xhr.upload.onprogress= ev=>{
+      if(ev.lengthComputable){
+        const percent = (ev.loaded/ev.total)*100;
+        document.getElementById("progress-bar").style.width= percent+"%";
+        document.getElementById("progress-value").textContent= Math.floor(percent)+"%";
+      }
+    };
+
+    xhr.onload= ()=>{
+      spinner.style.display="none";
+      if(xhr.status!==200 && xhr.status!==500){
+        console.error("XHR error:",xhr.responseText);
+        return;
+      }
+      try {
+        const result= JSON.parse(xhr.responseText);
+        console.log("Server Response:",result);
+      } catch(err){
+        console.error("JSON parse error:",err);
+      }
+    };
+
+    xhr.onerror= ()=>{
+      spinner.style.display="none";
+      console.error("Network error during upload or processing.");
+    };
+
+    document.getElementById("progress-bar").style.width="0%";
+    document.getElementById("progress-value").textContent="0%";
+    xhr.send(formData);
+  });
+</script>
+</body>
+</html>
