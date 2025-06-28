@@ -46,17 +46,6 @@ MindMinder is a Flask-based web application that allows users to record or uploa
 
 * Audio: `.wav`, `.mp3`, `.mp4`, `.m4a`, `.ogg`, `.flac`
 
----
-
-##  Security Note
-
-> This project uses JSON files for storage and hardcoded keys. For production use:
-
-* Move to a secure database (e.g., PostgreSQL)
-* Store secrets in environment variables
-* Add CSRF protection and HTTPS
-
----
 
 ##  License
 
